@@ -1,4 +1,5 @@
 
+from logging import exception
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import time
@@ -40,61 +41,73 @@ class GameDriver:
         self.body.send_keys(self.moves[moveCode])
         time.sleep(0.1)
 
-def monte_carlo(matrix,searches_per_move,search_length):
+def check_add_tiles(mat):
+    lst = []
+    for i in mat:
+        for j in i:
+            lst.append(str(j))
+    if '0' in lst:
+        return True
+    return False
 
-    
+
+def monte_carlo(matrix,searches_per_move,search_length):
     moves = [move_up,move_down,move_left,move_right]
     can_move=[canMoveUp,canMoveDown,canMoveLeft,canMoveRight]
     scores = [0,0,0,0]
     
     for first_index in range(len(moves)):
-        try:
-            is_valid = can_move[first_index](matrix)
-            print(is_valid)
+
+        is_valid = can_move[first_index](matrix)
+        print(is_valid)
+        if is_valid:
+            search_matrix ,is_valid,change = moves[first_index](matrix)
+            search_matrix = add_new_tile(search_matrix)
+            scores[first_index] += change
+        else:
+            continue
+        
+        for _ in range(searches_per_move):
+            new_mat = np.copy(search_matrix)
+            n=random.choice(moves)
+            is_valid = can_move[moves.index(n)]
             if is_valid:
-                search_matrix ,is_valid,change = moves[first_index](matrix)
-                search_matrix = add_new_tile(search_matrix)
-                scores[first_index] += change
+                new_mat,_,change = n(search_matrix)
+                if check_add_tiles(new_mat):
+                    new_mat = add_new_tile(new_mat)
+                    scores[first_index] += change
+                else:    
+                    continue
             else:
                 continue
-            
-            for _ in range(searches_per_move):
-                new_mat = np.copy(search_matrix)
+
+            for _ in range(search_length):
+                length_mat = np.copy(new_mat)
                 n=random.choice(moves)
                 is_valid = can_move[moves.index(n)]
                 if is_valid:
-                    new_mat,_,change = n(search_matrix)
-                    new_mat = add_new_tile(new_mat)
-                    scores[first_index] += change
-                else:
-                    continue
-                for _ in range(search_length):
-                    length_mat = np.copy(new_mat)
-                    n=random.choice(moves)
-                    is_valid = can_move[moves.index(n)]
-                    if is_valid:
-                        length_mat,_,change = n(new_mat)
+                    length_mat,_,change = n(new_mat)
+                    if check_add_tiles(length_mat):
                         length_mat = add_new_tile(length_mat)
                         scores[first_index] += change
                     else:
                         continue
-        except:
-            continue           
+                else:
+                    continue
+    
 
     best_move = np.argmax(scores)
     return best_move
 
         
 game = GameDriver()
-inital_mat = 0
 moves = ['move_up','move_down','move_left','move_right']
 
 time.sleep(1)
 while True:
-    try:
-        matrix = game.getGrid()
-        index = monte_carlo(matrix,50,20)
-        game.move(index)
-        print(moves[index])
-    except:
-        continue
+
+    matrix = game.getGrid()
+    index = monte_carlo(matrix,50,20)
+    game.move(index)
+    print(moves[index])
+
